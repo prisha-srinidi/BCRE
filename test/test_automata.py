@@ -390,7 +390,7 @@ if __name__ == '__main__':
                 is_trap = 'T' in state_name_parts
             
             # If not a trap state and state changed, accept the event
-            if not is_trap and next_state != prev_state:
+            if not is_trap:
                 enforced += char
                 current = next_state
         
