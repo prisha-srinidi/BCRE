@@ -51,6 +51,7 @@ class DFA:
     def makeInit(self, q):
         #if a != '' and a != self.e:
         #if a and a not in self.e:
+        print("makeInit")
         self.q0 = q
         
             
@@ -64,23 +65,19 @@ class DFA:
 
 
     def accepts(self, w):
-
         if not w or w == self.e:
             return self.F(self.q0)
             
-        #if '.d' in w: 
         if w == ('.d',): 
             return False
         
         q = self.q
-        
         self.reset()
 
         for a in w:
             self.step(a)
             
         ret = self.isInAcceptingState()
-        
         self.reset(q)
 
         return ret
