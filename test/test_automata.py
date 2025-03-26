@@ -252,6 +252,10 @@ if __name__ == '__main__':
         "acaabcba" 
     ]
     
+    # Dictionary to store enforced outputs for each property
+    cs3_outputs = {}
+    cs4_outputs = {}
+    
     print("\nCS3 property (a,*,b,*):")
     print("-------------------------")
     for test in cs_test_strings:
@@ -269,6 +273,7 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        cs3_outputs[test] = enforced
     
     print("\nCS4 property (a,*,b,c,*):")
     print("--------------------------")
@@ -287,17 +292,16 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        cs4_outputs[test] = enforced
     
-    # Testing CS3 ∩ CS4 intersection with progressive inputs
-    print("\nTesting Intersection (CS3 ∩ CS4):")
-    print("----------------------------------")
-
+    # Testing CS3 ∩ CS4 intersection with manual parallel composition
+    print("\nTesting Intersection (CS3 ∩ CS4) via Manual Parallel Composition:")
+    print("---------------------------------------------------------------")
     for test in cs_test_strings:
         # Manual computation of intersection output with proper trap state detection
         enforced = ''
-        # Use the SAME automaton instances you already created
-        current_cs3 = cs3.q0  # Use existing automaton instance
-        current_cs4 = cs4.q0  # Use existing automaton instance
+        current_cs3 = cs3.q0
+        current_cs4 = cs4.q0
         
         for char in test:
             next_state_cs3 = cs3.d(current_cs3, char)
@@ -314,9 +318,91 @@ if __name__ == '__main__':
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
     
+    # Define a function to find the longest common subsequence (maximal substring)
+    def longest_common_subsequence(s1, s2):
+        """
+        Computes the longest common subsequence between two strings.
+        This represents the maximal substring function mentioned in the paper.
+        """
+        m, n = len(s1), len(s2)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        
+        # Build the LCS table
+        for i in range(m):
+            for j in range(n):
+                if s1[i] == s2[j]:
+                    dp[i + 1][j + 1] = dp[i][j] + 1
+                else:
+                    dp[i + 1][j + 1] = max(dp[i + 1][j], dp[i][j + 1])
+        
+        # Reconstruct the LCS
+        lcs = []
+        i, j = m, n
+        while i > 0 and j > 0:
+            if s1[i - 1] == s2[j - 1]:
+                lcs.append(s1[i - 1])
+                i -= 1
+                j -= 1
+            elif dp[i - 1][j] > dp[i][j - 1]:
+                i -= 1
+            else:
+                j -= 1
+        
+        # Return the reversed LCS (as we built it backwards)
+        return ''.join(reversed(lcs))
+    
+    # Testing CS3 ∩ CS4 intersection using the maximal substring approach
+    print("\nTesting Intersection (CS3 ∩ CS4) via Maximal Substring:")
+    print("------------------------------------------------------")
+    for test in cs_test_strings:
+        # Get the enforced outputs from both properties
+        output_cs3 = cs3_outputs[test]
+        output_cs4 = cs4_outputs[test]
+        
+        # Compute the longest common subsequence (maximal substring)
+        maximal_substring = longest_common_subsequence(output_cs3, output_cs4)
+        
+        print(f"Input: '{test}'")
+        print(f"  CS3 Output: '{output_cs3}'")
+        print(f"  CS4 Output: '{output_cs4}'")
+        print(f"  Maximal Substring: '{maximal_substring}'")
+    
+    # Testing CS3 ∩ CS4 intersection using the monolithic enforcer
+    print("\nTesting Intersection (CS3 ∩ CS4) via Monolithic Enforcer:")
+    print("---------------------------------------------------------")
+    cs_intersection = monolithic_enforcer("CS3_CS4", CS3(), CS4())
+    
+    for test in cs_test_strings:
+        # Process the input for intersection with proper trap state detection
+        enforced = ''
+        current = cs_intersection.q0
+        for char in test:
+            # Store previous state to detect if transition was suppressed
+            prev_state = current
+            next_state = cs_intersection.d(current, char)
+            
+            # Check if this is a trap state transition by examining the state name
+            # The product state name format is "StateA_StateB"
+            is_trap = False
+            if next_state:
+                state_name_parts = next_state.name.split('_')
+                # Check if any component is a trap state
+                is_trap = 'T' in state_name_parts
+            
+            # If not a trap state and state changed, accept the event
+            if not is_trap and next_state != prev_state:
+                enforced += char
+                current = next_state
+        
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+    
     # Testing the new RE1 and RE2 automata
     re1 = RE1()
     re2 = RE2()
+    
+    # Store outputs for RE1 and RE2
+    re1_outputs = {}
+    re2_outputs = {}
     
     # Progressive test strings for 'accab' showing each step
     re_progressive_strings = [
@@ -342,6 +428,7 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        re1_outputs[test] = enforced
     
     print("\nRE2 property (a (b|c)* a):")
     print("-------------------------")
@@ -358,15 +445,15 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        re2_outputs[test] = enforced
     
-    # Test RE1 ∩ RE2 intersection
-    print("\nTesting Intersection (RE1 ∩ RE2) - Progressive Testing of 'accab':")
-    print("------------------------------------------------------------------")
-
+    # Test RE1 ∩ RE2 intersection via manual parallel composition
+    print("\nTesting Intersection (RE1 ∩ RE2) via Manual Parallel Composition:")
+    print("----------------------------------------------------------------")
     for test in re_progressive_strings:
         enforced = ''
-        current_re1 = re1.q0  # Use existing automaton instance
-        current_re2 = re2.q0  # Use existing automaton instance
+        current_re1 = re1.q0
+        current_re2 = re2.q0
         
         for char in test:
             next_state_re1 = re1.d(current_re1, char) 
@@ -383,6 +470,50 @@ if __name__ == '__main__':
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
     
+    # Testing RE1 ∩ RE2 intersection using the maximal substring approach
+    print("\nTesting Intersection (RE1 ∩ RE2) via Maximal Substring:")
+    print("------------------------------------------------------")
+    for test in re_progressive_strings:
+        # Get the enforced outputs from both properties
+        output_re1 = re1_outputs[test]
+        output_re2 = re2_outputs[test]
+        
+        # Compute the longest common subsequence (maximal substring)
+        maximal_substring = longest_common_subsequence(output_re1, output_re2)
+        
+        print(f"Input: '{test}'")
+        print(f"  RE1 Output: '{output_re1}'")
+        print(f"  RE2 Output: '{output_re2}'")
+        print(f"  Maximal Substring: '{maximal_substring}'")
+    
+    # Testing RE1 ∩ RE2 intersection using the monolithic enforcer
+    print("\nTesting Intersection (RE1 ∩ RE2) via Monolithic Enforcer:")
+    print("---------------------------------------------------------")
+    re_intersection = monolithic_enforcer("RE1_RE2", RE1(), RE2())
+    
+    for test in re_progressive_strings:
+        # Process the input for intersection with proper trap state detection
+        enforced = ''
+        current = re_intersection.q0
+        for char in test:
+            # Store previous state to detect if transition was suppressed
+            prev_state = current
+            next_state = re_intersection.d(current, char)
+            
+            # Check if this is a trap state transition by examining the state name
+            is_trap = False
+            if next_state:
+                state_name_parts = next_state.name.split('_')
+                # Check if any component is a trap state
+                is_trap = 'T' in state_name_parts
+            
+            # If not a trap state and state changed, accept the event
+            if not is_trap and next_state != prev_state:
+                enforced += char
+                current = next_state
+        
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+    
     # More test cases for RE1 and RE2
     re_test_strings = [
         "aa",      # Accepted by both RE1 and RE2
@@ -394,6 +525,10 @@ if __name__ == '__main__':
         "abca",    # Accepted by both RE1 and RE2
         "abcabb"   # Accepted by RE1, not by RE2
     ]
+    
+    # Store outputs for additional test cases
+    re1_additional_outputs = {}
+    re2_additional_outputs = {}
     
     print("\nAdditional Test Cases for RE1 (a (b|c)* a b*):")
     print("--------------------------------------------")
@@ -410,6 +545,7 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        re1_additional_outputs[test] = enforced
     
     print("\nAdditional Test Cases for RE2 (a (b|c)* a):")
     print("------------------------------------------")
@@ -426,9 +562,11 @@ if __name__ == '__main__':
                 enforced += char
                 current = next_state
         print(f"Input: '{test}' -> Output: '{enforced}'")
+        re2_additional_outputs[test] = enforced
     
-    print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2):")
-    print("-------------------------------------------------")
+    # Test additional cases with manual parallel composition
+    print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Manual Parallel Composition:")
+    print("-------------------------------------------------------------------------------")
     for test in re_test_strings:
         enforced = ''
         current_re1 = re1.q0
@@ -448,14 +586,87 @@ if __name__ == '__main__':
                 current_re2 = next_state_re2
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
-
-    # And the longer test case
+    
+    # Test additional cases with maximal substring approach
+    print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Maximal Substring:")
+    print("-----------------------------------------------------------------------")
+    for test in re_test_strings:
+        # Get the enforced outputs from both properties
+        output_re1 = re1_additional_outputs[test]
+        output_re2 = re2_additional_outputs[test]
+        
+        # Compute the longest common subsequence (maximal substring)
+        maximal_substring = longest_common_subsequence(output_re1, output_re2)
+        
+        print(f"Input: '{test}'")
+        print(f"  RE1 Output: '{output_re1}'")
+        print(f"  RE2 Output: '{output_re2}'")
+        print(f"  Maximal Substring: '{maximal_substring}'")
+    
+    # Test additional cases with monolithic enforcer
+    print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Monolithic Enforcer:")
+    print("--------------------------------------------------------------------------")
+    for test in re_test_strings:
+        # Process the input for intersection with proper trap state detection
+        enforced = ''
+        current = re_intersection.q0
+        for char in test:
+            # Store previous state to detect if transition was suppressed
+            prev_state = current
+            next_state = re_intersection.d(current, char)
+            
+            # Check if this is a trap state transition by examining the state name
+            is_trap = False
+            if next_state:
+                state_name_parts = next_state.name.split('_')
+                # Check if any component is a trap state
+                is_trap = 'T' in state_name_parts
+            
+            # If not a trap state and state changed, accept the event
+            if not is_trap and next_state != prev_state:
+                enforced += char
+                current = next_state
+        
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+    
+    # Test a longer challenging sequence for enforcement
     test_long = "abcaabbcaac"
-    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}':")
+    
+    # Process test_long with individual enforcers
+    print(f"\nTesting input '{test_long}' with individual enforcers:")
+    
+    # RE1 enforcement
+    enforced_re1 = ''
+    current = re1.q0
+    for char in test_long:
+        next_state = re1.d(current, char)
+        if next_state in [state for state in re1.Q if state.name == 'T']:
+            # Suppress the event that leads to trap state
+            continue
+        else:
+            enforced_re1 += char
+            current = next_state
+    print(f"RE1 Output: '{enforced_re1}'")
+    
+    # RE2 enforcement
+    enforced_re2 = ''
+    current = re2.q0
+    for char in test_long:
+        next_state = re2.d(current, char)
+        if next_state in [state for state in re2.Q if state.name == 'T']:
+            # Suppress the event that leads to trap state
+            continue
+        else:
+            enforced_re2 += char
+            current = next_state
+    print(f"RE2 Output: '{enforced_re2}'")
+    
+    # Test manual parallel composition
+    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Manual Parallel Composition:")
     enforced = ''
     current_re1 = re1.q0
     current_re2 = re2.q0
-
+    
     for char in test_long:
         next_state_re1 = re1.d(current_re1, char) 
         next_state_re2 = re2.d(current_re2, char)
@@ -468,5 +679,33 @@ if __name__ == '__main__':
             enforced += char
             current_re1 = next_state_re1
             current_re2 = next_state_re2
-
-    print(f"Input: '{test_long}' -> Output: '{enforced}'")
+    
+    print(f"Manual Parallel Output: '{enforced}'")
+    
+    # Test maximal substring approach
+    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Maximal Substring:")
+    maximal_substring = longest_common_subsequence(enforced_re1, enforced_re2)
+    print(f"Maximal Substring: '{maximal_substring}'")
+    
+    # Test monolithic enforcer
+    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Monolithic Enforcer:")
+    enforced = ''
+    current = re_intersection.q0
+    for char in test_long:
+        # Store previous state to detect if transition was suppressed
+        prev_state = current
+        next_state = re_intersection.d(current, char)
+        
+        # Check if this is a trap state transition by examining the state name
+        is_trap = False
+        if next_state:
+            state_name_parts = next_state.name.split('_')
+            # Check if any component is a trap state
+            is_trap = 'T' in state_name_parts
+        
+        # If not a trap state and state changed, accept the event
+        if not is_trap and next_state != prev_state:
+            enforced += char
+            current = next_state
+    
+    print(f"Monolithic Enforcer Output: '{enforced}'")
