@@ -51,7 +51,7 @@ class DFA:
     def makeInit(self, q):
         #if a != '' and a != self.e:
         #if a and a not in self.e:
-        print("makeInit")
+        # print("makeInit")
         self.q0 = q
         
             

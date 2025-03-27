@@ -370,31 +370,76 @@ if __name__ == '__main__':
     # Testing CS3 ∩ CS4 intersection using the monolithic enforcer
     print("\nTesting Intersection (CS3 ∩ CS4) via Monolithic Enforcer:")
     print("---------------------------------------------------------")
+    from src.enforcer import enforcer  # Import the enforcer function
+
+    # Create the monolithic enforcer by composing CS3 and CS4
     cs_intersection = monolithic_enforcer("CS3_CS4", CS3(), CS4())
-    
+
     for test in cs_test_strings:
-        # Process the input for intersection with proper trap state detection
-        enforced = ''
-        current = cs_intersection.q0
-        for char in test:
-            # Store previous state to detect if transition was suppressed
-            prev_state = current
-            next_state = cs_intersection.d(current, char)
-            
-            # Check if this is a trap state transition by examining the state name
-            # The product state name format is "StateA_StateB"
-            is_trap = False
-            if next_state:
-                state_name_parts = next_state.name.split('_')
-                # Check if any component is a trap state
-                is_trap = 'T' in state_name_parts
-            
-            # If not a trap state and state changed, accept the event
-            if not is_trap:
-                enforced += char
-                current = next_state
+        # Convert input string to list of individual events as required by enforcer function
+        input_events = list(test)
+        
+        # Use the enforcer function from enforcer.py with appropriate buffer size
+        max_buffer = 10  # Adjust buffer size as needed
+        enforced_output = enforcer(cs_intersection, input_events, max_buffer)
+        
+        # Join the output list into a string for display
+        enforced = ''.join(enforced_output)
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
+    
+    # Testing CS3 ∩ CS4 intersection using the monolithic enforcer with bounded enforcement
+    print("\nTesting Intersection (CS3 ∩ CS4) via Monolithic Enforcer with Bounded Enforcement:")
+    print("-------------------------------------------------------------------------------")
+    from src.enforcer import enforcer  # Import the bounded enforcer function
+
+    cs_intersection = monolithic_enforcer("CS3_CS4", CS3(), CS4())
+
+    # Use the bounded enforcer function for proper buffering semantics
+    for test in cs_test_strings:
+        # Create a maximal buffer size - can be adjusted based on property needs
+        max_buffer = 10
+        
+        # Convert input string to list of individual events as required by enforcer function
+        input_events = list(test)
+        
+        # Use the enforcer function from enforcer.py which implements proper buffering
+        enforced_output = enforcer(cs_intersection, input_events, max_buffer)
+        
+        # Join the output list into a string for display
+        enforced = ''.join(enforced_output)
+        
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+
+    # Similarly for the RE1 ∩ RE2 intersection
+    print("\nTesting Intersection (RE1 ∩ RE2) via Monolithic Enforcer with Bounded Enforcement:")
+    print("-------------------------------------------------------------------------------")
+    re_intersection = monolithic_enforcer("RE1_RE2", RE1(), RE2())
+
+    for test in re_progressive_strings:
+        max_buffer = 10
+        input_events = list(test)
+        enforced_output = enforcer(re_intersection, input_events, max_buffer)
+        enforced = ''.join(enforced_output)
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+
+    # And for the additional test cases
+    print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Monolithic Enforcer with Bounded Enforcement:")
+    print("--------------------------------------------------------------------------------------------")
+    for test in re_test_strings:
+        max_buffer = 10
+        input_events = list(test)
+        enforced_output = enforcer(re_intersection, input_events, max_buffer)
+        enforced = ''.join(enforced_output)
+        print(f"Input: '{test}' -> Output: '{enforced}'")
+
+    # And for the longer test case
+    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Monolithic Enforcer with Bounded Enforcement:")
+    input_events = list(test_long)
+    max_buffer = 10
+    enforced_output = enforcer(re_intersection, input_events, max_buffer)
+    enforced = ''.join(enforced_output)
+    print(f"Monolithic Enforcer with Bounded Enforcement Output: '{enforced}'")
     
     # Testing the new RE1 and RE2 automata
     re1 = RE1()
@@ -489,28 +534,19 @@ if __name__ == '__main__':
     # Testing RE1 ∩ RE2 intersection using the monolithic enforcer
     print("\nTesting Intersection (RE1 ∩ RE2) via Monolithic Enforcer:")
     print("---------------------------------------------------------")
+    # Create the monolithic enforcer for RE1 and RE2
     re_intersection = monolithic_enforcer("RE1_RE2", RE1(), RE2())
-    
+
     for test in re_progressive_strings:
-        # Process the input for intersection with proper trap state detection
-        enforced = ''
-        current = re_intersection.q0
-        for char in test:
-            # Store previous state to detect if transition was suppressed
-            prev_state = current
-            next_state = re_intersection.d(current, char)
-            
-            # Check if this is a trap state transition by examining the state name
-            is_trap = False
-            if next_state:
-                state_name_parts = next_state.name.split('_')
-                # Check if any component is a trap state
-                is_trap = 'T' in state_name_parts
-            
-            # If not a trap state and state changed, accept the event
-            if not is_trap and next_state != prev_state:
-                enforced += char
-                current = next_state
+        # Convert input string to list of individual events
+        input_events = list(test)
+        
+        # Use the enforcer function from enforcer.py
+        max_buffer = 10
+        enforced_output = enforcer(re_intersection, input_events, max_buffer)
+        
+        # Join the output list into a string for display
+        enforced = ''.join(enforced_output)
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
     
@@ -607,27 +643,31 @@ if __name__ == '__main__':
     print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Monolithic Enforcer:")
     print("--------------------------------------------------------------------------")
     for test in re_test_strings:
-        # Process the input for intersection with proper trap state detection
-        enforced = ''
-        current = re_intersection.q0
-        for char in test:
-            # Store previous state to detect if transition was suppressed
-            prev_state = current
-            next_state = re_intersection.d(current, char)
-            
-            # Check if this is a trap state transition by examining the state name
-            is_trap = False
-            if next_state:
-                state_name_parts = next_state.name.split('_')
-                # Check if any component is a trap state
-                is_trap = 'T' in state_name_parts
-            
-            # If not a trap state and state changed, accept the event
-            if not is_trap and next_state != prev_state:
-                enforced += char
-                current = next_state
+        # Convert input string to list of individual events
+        input_events = list(test)
+        
+        # Use the enforcer function from enforcer.py
+        max_buffer = 10
+        enforced_output = enforcer(re_intersection, input_events, max_buffer)
+        
+        # Join the output list into a string for display
+        enforced = ''.join(enforced_output)
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
+
+    # Test the longer string with monolithic enforcer
+    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Monolithic Enforcer:")
+    # Convert input string to list of individual events
+    input_events = list(test_long)
+        
+    # Use the enforcer function from enforcer.py
+    max_buffer = 10
+    enforced_output = enforcer(re_intersection, input_events, max_buffer)
+
+    # Join the output list into a string for display
+    enforced = ''.join(enforced_output)
+
+    print(f"Monolithic Enforcer Output: '{enforced}'")
     
     # Test a longer challenging sequence for enforcement
     test_long = "abcaabbcaac"

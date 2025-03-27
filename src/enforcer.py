@@ -29,10 +29,10 @@ def computeEmptinessDict(autC):
         autC.makeInit(state)
         if autC.isEmpty():
             dictEnf[state] = True
-            print("State {} is a trap state.".format(state.name))
+            # print("State {} is a trap state.".format(state.name))
         else:
             dictEnf[state] = False
-            print("State {} is not a trap state.".format(state.name))
+            # print("State {} is not a trap state.".format(state.name))
     return dictEnf
 
 def computes_substring(iterable, n, automata, k):
@@ -86,53 +86,85 @@ def enforcer(phi, sigma, maxBuffer):
     # if maxBuffer < len(phi.Q):
     #     print('your buffer is not of reasonable size')
     #     exit()
-    print("normal enforcer")
+    # print("normal enforcer")
     global estart, eend, y, sum
     y = 0
     sum = 0
     sigmaC = collections.deque([], maxlen=maxBuffer)
     sigmaS = []
     q = phi.q0
-    dictEnf = computeEmptinessDict(phi)
+    
+    # Use pre-computed dictEnf if available, otherwise compute it
+    if hasattr(phi, 'dictEnf'):
+        dictEnf = phi.dictEnf
+    else:
+        dictEnf = computeEmptinessDict(phi)
+        
     phi.q0 = q
     m = q
-    estart = time.time()
+    
+    # Process each event in the input
     for event in sigma:
-        t = q
-        q = phi.d(q, event)
-        Final = phi.F(q)
-        if Final == True:
-            print("final state reached with event " + str(event))
+        # Store previous state
+        prev_state = q
+        
+        # Check if this transition should be suppressed
+        should_suppress = False
+        if hasattr(phi, 'suppressed_transitions') and prev_state in phi.suppressed_transitions:
+            if event in phi.suppressed_transitions[prev_state]:
+                should_suppress = True
+        
+        if should_suppress:
+            # Skip this event entirely
+            continue
+        
+        # Get next state from transition function
+        next_state = phi.d(q, event)
+        
+        # Check if next_state is a trap state using dictEnf
+        is_trap = dictEnf.get(next_state, False)
+        
+        # If not in dictEnf, check if any component is a trap state (for product states)
+        if not is_trap and hasattr(next_state, 'stateA') and hasattr(next_state, 'stateB'):
+            is_trap = (next_state.stateA.name == 'T' or next_state.stateB.name == 'T')
+        
+        # Check if the state itself is marked as a trap
+        if not is_trap and hasattr(next_state, 'is_trap'):
+            is_trap = next_state.is_trap
+        
+        # If it's a trap state, suppress this event
+        if is_trap:
+            # Skip this event entirely (don't update state or add to buffer)
+            continue
+        
+        # Not a trap state, update current state
+        q = next_state
+        
+        # If in accepting state, output buffer contents plus current event
+        if phi.F(q):
             for a in sigmaC:
                 sigmaS.append(a)
             sigmaS.append(event)
-            sigmaC = []
-            t = q
+            sigmaC.clear()
         else:
-            if dictEnf[q] == True:
-                # The new event would lead to a trap state; suppress it by reverting state.
-                print("kicking out event " + str(event))
-                q = t
-            else:
-                t = q
-                clean_start = time.time()
-                if len(sigmaC) >= maxBuffer:
-                    phi.q0 = m
-                    k = phi.q0		
-                    for t in sigmaS:
-                        k = phi.d(k, t)
-                    y = y + 1
-                    sigmaC1 = clean(sigmaC, phi, maxBuffer, k, event)
-                    if sigmaC1 == 100:
-                        break
-                    else:
-                        sigmaC = sigmaC1
-                    clean_end = time.time()
-                    sum = sum + (clean_end - clean_start)
+            # Not in accepting state, add to buffer (with overflow handling)
+            if len(sigmaC) >= maxBuffer:
+                phi.q0 = m
+                k = phi.q0
+                for t in sigmaS:
+                    k = phi.d(k, t)
+                y = y + 1
+                sigmaC1 = clean(sigmaC, phi, maxBuffer, k, event)
+                if sigmaC1 == 100:
+                    break
                 else:
-                    sigmaC.append(event)
-    eend = time.time()
+                    sigmaC = sigmaC1
+            else:
+                sigmaC.append(event)
+    
+    # Store the remaining buffer in the automaton
     phi.buffer = sigmaC
+    # Print for debugging
     print("output sequence is " + str(sigmaS))
     return sigmaS
 
@@ -443,15 +475,30 @@ def product(A, B, p_name):
         
         def __repr__(self):
             return self.name
+        
+        # Define equality based on the state name
+        def __eq__(self, other):
+            if not isinstance(other, ProductState):
+                return False
+            return self.name == other.name
+        
+        # Use the state name for hashing
+        def __hash__(self):
+            return hash(self.name)
     
     # Create product states
     p_states = []
+    p_state_map = {}  # Map to quickly look up states by component states
+    
     for stateA in A.Q:
         for stateB in B.Q:
-            p_states.append(ProductState(stateA, stateB))
+            prod_state = ProductState(stateA, stateB)
+            p_states.append(prod_state)
+            # Use a tuple of state names as key for the map
+            p_state_map[(stateA.name, stateB.name)] = prod_state
     
     # Define the start state
-    p_start = next(s for s in p_states if s.stateA == A.q0 and s.stateB == B.q0)
+    p_start = p_state_map[(A.q0.name, B.q0.name)]
     
     # Define the acceptance function for the product DFA
     def p_F(p_state):
@@ -475,8 +522,8 @@ def product(A, B, p_name):
                 if next_stateA is None or next_stateB is None:
                     continue
                     
-                # Find the corresponding product state
-                next_p_state = next((s for s in p_states if s.stateA == next_stateA and s.stateB == next_stateB), None)
+                # Find the corresponding product state using the map
+                next_p_state = p_state_map.get((next_stateA.name, next_stateB.name))
                 
                 if next_p_state in non_trap_states:
                     non_trap_states.add(state)
@@ -489,34 +536,53 @@ def product(A, B, p_name):
     for state in trap_states:
         state.is_trap = True
     
-    # Store information about which transitions are suppressed
-    suppressed_transitions = []
+    # Keep track of suppressed transitions for each state
+    suppressed_transitions = {}
     
-    # Define the transition function for the product DFA with trap state suppression
+    # Define the transition function for the product DFA
     def p_delta(p_state, symbol):
         next_stateA = A.d(p_state.stateA, symbol)
         next_stateB = B.d(p_state.stateB, symbol)
         
         if next_stateA is None or next_stateB is None:
             return None
-            
-        # Find the corresponding product state
-        next_p_state = next((s for s in p_states if s.stateA == next_stateA and s.stateB == next_stateB), None)
         
-        # Suppress transition if it leads to a trap state
-        if next_p_state.is_trap:
-            # Record that we're suppressing this transition
-            suppressed_transitions.append((p_state.name, symbol, next_p_state.name))
-            return p_state  # Stay in the current state (suppress event)
+        # Get the corresponding product state
+        next_p_state = p_state_map.get((next_stateA.name, next_stateB.name))
+        
+        # Check if either component leads to a trap state
+        is_trap_A = next_stateA.name == 'T'
+        is_trap_B = next_stateB.name == 'T'
+        
+        # If either leads to a trap state or the product state is marked as a trap,
+        # suppress the transition by returning the current state
+        if is_trap_A or is_trap_B or next_p_state.is_trap:
+            # Mark this as a suppressed transition
+            if p_state not in suppressed_transitions:
+                suppressed_transitions[p_state] = set()
+            suppressed_transitions[p_state].add(symbol)
             
+            return p_state  # Stay in current state (suppress the event)
+        
         return next_p_state
     
     # Create the product DFA
     product_dfa = DFA(p_name, A.S, p_states, p_start, p_F, p_delta, p_end)
-    product_dfa.trap_states = trap_states  # Store the trap states
     
-    # Store suppressed transitions for debugging
+    # Store the suppressed transitions in the product DFA
     product_dfa.suppressed_transitions = suppressed_transitions
+    
+    # Pre-compute and store the emptiness dictionary for the product DFA
+    dictEnf = {}
+    for state in p_states:
+        if state.is_trap or state.stateA.name == 'T' or state.stateB.name == 'T':
+            dictEnf[state] = True
+        else:
+            dictEnf[state] = False
+    
+    # Store the pre-computed emptiness dictionary and trap states
+    product_dfa.dictEnf = dictEnf
+    product_dfa.trap_states = trap_states
     
     return product_dfa
 
