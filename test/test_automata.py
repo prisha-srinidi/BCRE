@@ -23,7 +23,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if (project_root not in sys.path):
     sys.path.insert(0, project_root)
 
-from src.enforcer import state, DFA, monolithic_enforcer
+from src.enforcer import state, DFA, monolithic_enforcer, enforcer
 
 # Define the alphabet for these properties
 alphabet = list("abc")
@@ -259,38 +259,18 @@ if __name__ == '__main__':
     print("\nCS3 property (a,*,b,*):")
     print("-------------------------")
     for test in cs_test_strings:
-        # Process with trap state suppression for CS3
-        enforced = ''
-        current = cs3.q0
-        for char in test:
-            next_state = cs3.d(current, char)
-            # Check if next_state is a trap state
-            if next_state in [state for state in cs3.Q if state.name == 'T']:
-                # Suppress the event that leads to trap state
-                continue
-            else:
-                # Add char to enforced output and update current state
-                enforced += char
-                current = next_state
+        # Use the enforcer function for CS3
+        enforced_output = enforcer(cs3, list(test), 2)  # Use buffer size 5
+        enforced = ''.join(enforced_output)
         print(f"Input: '{test}' -> Output: '{enforced}'")
         cs3_outputs[test] = enforced
     
     print("\nCS4 property (a,*,b,c,*):")
     print("--------------------------")
     for test in cs_test_strings:
-        # Process with trap state suppression for CS4
-        enforced = ''
-        current = cs4.q0
-        for char in test:
-            next_state = cs4.d(current, char)
-            # Check if next_state is a trap state
-            if next_state in [state for state in cs4.Q if state.name == 'T']:
-                # Suppress the event that leads to trap state
-                continue
-            else:
-                # Add char to enforced output and update current state
-                enforced += char
-                current = next_state
+        # Use the enforcer function for CS4
+        enforced_output = enforcer(cs4, list(test), 2)  # Use buffer size 5
+        enforced = ''.join(enforced_output)
         print(f"Input: '{test}' -> Output: '{enforced}'")
         cs4_outputs[test] = enforced
     
@@ -380,7 +360,7 @@ if __name__ == '__main__':
         input_events = list(test)
         
         # Use the enforcer function from enforcer.py with appropriate buffer size
-        max_buffer = 10  # Adjust buffer size as needed
+        max_buffer = 3  # Adjust buffer size as needed
         enforced_output = enforcer(cs_intersection, input_events, max_buffer)
         
         # Join the output list into a string for display
@@ -398,7 +378,7 @@ if __name__ == '__main__':
     # Use the bounded enforcer function for proper buffering semantics
     for test in cs_test_strings:
         # Create a maximal buffer size - can be adjusted based on property needs
-        max_buffer = 10
+        max_buffer = 3
         
         # Convert input string to list of individual events as required by enforcer function
         input_events = list(test)
@@ -411,6 +391,13 @@ if __name__ == '__main__':
         
         print(f"Input: '{test}' -> Output: '{enforced}'")
 
+    re_progressive_strings = [
+        "a",    # First character
+        "ac",   # First two characters
+        "acc",  # First three characters
+        "acca", # First four characters
+        "accab" # Full test string
+    ]
     # Similarly for the RE1 ∩ RE2 intersection
     print("\nTesting Intersection (RE1 ∩ RE2) via Monolithic Enforcer with Bounded Enforcement:")
     print("-------------------------------------------------------------------------------")
@@ -426,7 +413,15 @@ if __name__ == '__main__':
     # And for the additional test cases
     print("\nAdditional Test Cases for Intersection (RE1 ∩ RE2) via Monolithic Enforcer with Bounded Enforcement:")
     print("--------------------------------------------------------------------------------------------")
-    for test in re_test_strings:
+    # Progressive test strings for 'accab' showing each step
+    re_test_strings = [
+        "a",       
+        "ac",      
+        "acc",
+        "acca",
+        "accab"
+    ]
+    for test in re_progressive_strings:
         max_buffer = 10
         input_events = list(test)
         enforced_output = enforcer(re_intersection, input_events, max_buffer)
@@ -434,12 +429,23 @@ if __name__ == '__main__':
         print(f"Input: '{test}' -> Output: '{enforced}'")
 
     # And for the longer test case
-    print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Monolithic Enforcer with Bounded Enforcement:")
-    input_events = list(test_long)
+    print("\nTesting Intersection (RE1 ∩ RE2) with combined input string via Monolithic Enforcer:")
+    print("----------------------------------------------------------------------------")
+    # Join all the progressive strings into a single string
+    combined_input = ''.join(re_progressive_strings)
+    print(f"Combined input: '{combined_input}'")
+
+    # Convert to list of characters
+    input_events = list(combined_input)
+
+    # Use the enforcer function
     max_buffer = 10
     enforced_output = enforcer(re_intersection, input_events, max_buffer)
+
+    # Join the output list into a string for display
     enforced = ''.join(enforced_output)
-    print(f"Monolithic Enforcer with Bounded Enforcement Output: '{enforced}'")
+
+    print(f"Monolithic Enforcer Output: '{enforced}'")
     
     # Testing the new RE1 and RE2 automata
     re1 = RE1()
@@ -449,14 +455,6 @@ if __name__ == '__main__':
     re1_outputs = {}
     re2_outputs = {}
     
-    # Progressive test strings for 'accab' showing each step
-    re_progressive_strings = [
-        "a",    # First character
-        "ac",   # First two characters
-        "acc",  # First three characters
-        "acca", # First four characters
-        "accab" # Full test string
-    ]
     
     print("\nRE1 property (a (b|c)* a b*):")
     print("-----------------------------")
@@ -542,7 +540,7 @@ if __name__ == '__main__':
         input_events = list(test)
         
         # Use the enforcer function from enforcer.py
-        max_buffer = 10
+        max_buffer = 3
         enforced_output = enforcer(re_intersection, input_events, max_buffer)
         
         # Join the output list into a string for display
@@ -656,6 +654,7 @@ if __name__ == '__main__':
         print(f"Input: '{test}' -> Output: '{enforced}'")
 
     # Test the longer string with monolithic enforcer
+    test_long="abccaa"
     print(f"\nTesting Intersection (RE1 ∩ RE2) with input '{test_long}' via Monolithic Enforcer:")
     # Convert input string to list of individual events
     input_events = list(test_long)
@@ -748,4 +747,23 @@ if __name__ == '__main__':
             enforced += char
             current = next_state
     
+    print(f"Monolithic Enforcer Output: '{enforced}'")
+
+    # And for the longer test case - properly concatenate all strings together
+    print("\nTesting Intersection (RE1 ∩ RE2) with combined input string via Monolithic Enforcer:")
+    print("----------------------------------------------------------------------------")
+    # Join all the progressive strings into a single string
+    combined_input = ''.join(re_progressive_strings)
+    print(f"Combined input: '{combined_input}'")
+
+    # Convert to list of characters
+    input_events = list(combined_input)
+
+    # Use the enforcer function
+    max_buffer = 10
+    enforced_output = enforcer(re_intersection, input_events, max_buffer)
+
+    # Join the output list into a string for display
+    enforced = ''.join(enforced_output)
+
     print(f"Monolithic Enforcer Output: '{enforced}'")
