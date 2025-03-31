@@ -151,7 +151,7 @@ if __name__ == '__main__':
     ]
     
     # Buffer size to use for all tests
-    buffer_size = 5
+    buffer_size = 2
     
     # Create the monolithic enforcer for product construction
     cs_intersection = monolithic_enforcer("CS3_CS4", CS3(), CS4())
