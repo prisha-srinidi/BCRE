@@ -5,7 +5,7 @@ enforcer.py
 This module implements both bounded runtime enforcement and compositional runtime enforcement.
 It includes:
   - Functions for bounded enforcement (computeEmptinessDict, computes_substring, clean, enforcer)
-  - Functions for compositional enforcement (product, monolithic_enforcer)
+  - Functions for compositional enforcement (product, monolithic_enforcer, serial_enforcer)
   - Utility function for longest common subsequence calculation
 """
 
@@ -383,6 +383,39 @@ def monolithic_enforcer(name, *D):
             combined_enforcer = product(combined_enforcer, D[i], name)
         return combined_enforcer
     return combine_properties(name, *D)
+
+def serial_enforcer(name, *D):
+    """
+    Implements serial composition of multiple enforcers.
+    Properties are enforced sequentially: the output of one enforcer is fed as input to the next.
+    
+    Args:
+        name: Name for the serial composition
+        *D: Variable number of DFA objects representing the properties to enforce
+        
+    Returns:
+        A function that performs serial enforcement of the given properties
+    """
+    def serial_enforcement(sigma, maxBuffer=5):
+        assert len(D) > 0, "No DFAs provided for serial enforcement"
+        
+        # Start with the original input
+        current_output = list(sigma)
+        
+        # Track the outputs of each individual enforcer for analysis
+        individual_outputs = {}
+        
+        # Process through each enforcer in sequence
+        for i, dfa in enumerate(D):
+            dfa_name = getattr(dfa, 'name', f"Property_{i}")
+            current_output = enforcer(dfa, current_output, maxBuffer)
+            individual_outputs[dfa_name] = current_output.copy()
+            print(f"After enforcing {dfa_name}: {''.join(current_output)}")
+        
+        return current_output, individual_outputs
+    
+    # Return the composed function
+    return serial_enforcement
 
 ##############################  Main (doctest invocation) ######################################
 if __name__ == '__main__':

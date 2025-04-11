@@ -10,6 +10,8 @@ This file defines example automata for testing runtime enforcement with three ap
 The automata tested are:
 - CS3: The first 3 actions must be: 'a', any letter from {a,b,c}, 'b'
 - CS4: The first 4 actions must be: 'a', any letter from {a,b,c}, 'b', 'c'
+
+
 """
 
 import sys
@@ -18,7 +20,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if (project_root not in sys.path):
     sys.path.insert(0, project_root)
 
-from src.enforcer import state, DFA, monolithic_enforcer, enforcer, longest_common_subsequence
+from src.enforcer import state, DFA, monolithic_enforcer, enforcer, longest_common_subsequence, serial_enforcer
 
 # Define the alphabet for these properties
 alphabet = list("abc")
@@ -151,7 +153,7 @@ if __name__ == '__main__':
     ]
     
     # Buffer size to use for all tests
-    buffer_size = 2
+    buffer_size = 3
     
     # Create the monolithic enforcer for product construction
     cs_intersection = monolithic_enforcer("CS3_CS4", CS3(), CS4())
@@ -175,47 +177,54 @@ if __name__ == '__main__':
         output_cs4 = ''.join(cs4_output)
         lcs_output = longest_common_subsequence(output_cs3, output_cs4)
         
+        # 4. Serial enforcement (both directions)
+        cs3_then_cs4 = serial_enforcer("CS3_THEN_CS4", cs3, cs4)
+        cs4_then_cs3 = serial_enforcer("CS4_THEN_CS3", cs4, cs3)
+        serial_output_3_4, _ = cs3_then_cs4(test, buffer_size)
+        serial_output_4_3, _ = cs4_then_cs3(test, buffer_size)
+        
         # Print results for comparison
         print(f"  CS3 Individual: '{output_cs3}'")
         print(f"  CS4 Individual: '{output_cs4}'")
         print(f"  Monolithic: '{''.join(monolithic_output)}'")
         print(f"  Parallel LCS: '{lcs_output}'")
+        print(f"  Serial (CS3→CS4): '{''.join(serial_output_3_4)}'")
+        print(f"  Serial (CS4→CS3): '{''.join(serial_output_4_3)}'")
         
-        # Check if monolithic and parallel outputs match
-        if ''.join(monolithic_output) == lcs_output:
-            print("  ✓ Monolithic and Parallel outputs match")
+        # Check if monolithic and serial outputs match
+        if ''.join(monolithic_output) == ''.join(serial_output_3_4):
+            print("  ✓ Monolithic and Serial(CS3→CS4) outputs match")
         else:
-            print("  ✗ Monolithic and Parallel outputs differ")
+            print("  ✗ Monolithic and Serial(CS3→CS4) outputs differ")
             
-    # Test with a longer complex string
-    complex_input = "acaabcabcabacbaacbaabc"
-    print(f"\nTesting with complex input: '{complex_input}'")
+        if ''.join(monolithic_output) == ''.join(serial_output_4_3):
+            print("  ✓ Monolithic and Serial(CS4→CS3) outputs match")
+        else:
+            print("  ✗ Monolithic and Serial(CS4→CS3) outputs differ")
+            
+        # Check if monolithic and parallel LCS outputs match
+        if ''.join(monolithic_output) == lcs_output:
+            print("  ✓ Monolithic and Parallel LCS outputs match")
+        else:
+            print("  ✗ Monolithic and Parallel LCS outputs differ")
+            
+    # # Continue with the rest of your existing code
+    # complex_input = "acaabcabcabacbaacbaabc"
     
-    # 1. Individual property enforcement
-    cs3_output = enforcer(cs3, list(complex_input), buffer_size)
-    cs4_output = enforcer(cs4, list(complex_input), buffer_size)
+    # # Add the serial enforcement test for the complex input
+    # print("\nSerial Enforcement with Complex Input:")
+    # cs3_then_cs4 = serial_enforcer("CS3_THEN_CS4", cs3, cs4)
+    # cs4_then_cs3 = serial_enforcer("CS4_THEN_CS3", cs4, cs3)
+    # serial_output_3_4, _ = cs3_then_cs4(complex_input, buffer_size)
+    # serial_output_4_3, _ = cs4_then_cs3(complex_input, buffer_size)
+    # print(f"  Serial (CS3→CS4): '{''.join(serial_output_3_4)}'")
+    # print(f"  Serial (CS4→CS3): '{''.join(serial_output_4_3)}'")
     
-    # 2. Monolithic enforcement
-    try:
-        monolithic_output = enforcer(cs_intersection, list(complex_input), buffer_size)
-        monolithic_result = ''.join(monolithic_output)
-    except Exception as e:
-        monolithic_result = f"ERROR: {str(e)}"
-    
-    # 3. Parallel enforcement with LCS
-    output_cs3 = ''.join(cs3_output)
-    output_cs4 = ''.join(cs4_output)
-    lcs_output = longest_common_subsequence(output_cs3, output_cs4)
-    
-    # Print results
-    print(f"  CS3 Individual: '{output_cs3}'")
-    print(f"  CS4 Individual: '{output_cs4}'")
-    print(f"  Monolithic: '{monolithic_result}'")
-    print(f"  Parallel LCS: '{lcs_output}'")
-    
-    # Output analysis
-    print("\nOutput Analysis:")
-    print("  CS3 output length: ", len(output_cs3))
-    print("  CS4 output length: ", len(output_cs4))
-    print("  Monolithic output length: ", len(monolithic_result))
-    print("  Parallel LCS output length: ", len(lcs_output))
+    # # Extended analysis
+    # print("\nExtended Output Analysis:")
+    # print("  CS3 output length: ", len(output_cs3))
+    # print("  CS4 output length: ", len(output_cs4))
+    # print("  Monolithic output length: ", len(''.join(monolithic_output)))
+    # print("  Parallel LCS output length: ", len(lcs_output))
+    # print("  Serial (CS3→CS4) output length: ", len(''.join(serial_output_3_4)))
+    # print("  Serial (CS4→CS3) output length: ", len(''.join(serial_output_4_3)))

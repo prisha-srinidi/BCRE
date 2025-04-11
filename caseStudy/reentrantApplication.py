@@ -31,7 +31,7 @@ if project_root not in sys.path:
 
 from src.enforcer import state, DFA, enforcer, monolithic_enforcer
 
-def build_and_test_property(name, alphabet, states, transition_map, start_state, accept_states, test_inputs, max_buffer=5):
+def build_and_test_property(name, alphabet, states, transition_map, start_state, accept_states, test_inputs, max_buffer=20):
     """Helper function to build a DFA and test it with various inputs using bounded enforcement"""
     print(f"\n{name}:")
     print("-" * 80)
@@ -394,12 +394,12 @@ def test_monolithic_intersection_enforcement(properties):
     print(f"Input: {complex_input}")
     
     # Test with different buffer sizes
-    for buffer_size in [5, 10, 20]:
+    for buffer_size in [20]:
         # Use the enforcer function from enforcer.py
         enforced = enforcer(monolithic, list(complex_input), buffer_size)
         print(f"Buffer size {buffer_size}: {''.join(enforced)}")
 
-def parallel_compositional_enforcer(properties, input_events, max_buffer=10):
+def parallel_compositional_enforcer(properties, input_events, max_buffer=20):
     """
     Implements a simple parallel compositional enforcer without intelligent routing.
     All properties process the input independently, and their outputs are combined
@@ -458,8 +458,8 @@ def test_individual_vs_combined_enforcement(properties):
     print("\n1. Individual Property Enforcement:")
     individual_results = {}
     for name, dfa in properties.items():
-        # Use standard buffer size of 10 for all tests
-        enforced = enforcer(dfa, list(complex_input), 10)
+        # Use standard buffer size of 20 for all tests
+        enforced = enforcer(dfa, list(complex_input), 20)
         individual_results[name] = ''.join(enforced)
         print(f"  {name}: {individual_results[name]}")
     
@@ -468,14 +468,14 @@ def test_individual_vs_combined_enforcement(properties):
     all_props = list(properties.values())
     monolithic = monolithic_enforcer("All_Properties", *all_props)
     try:
-        monolithic_result = enforcer(monolithic, list(complex_input), 10)
+        monolithic_result = enforcer(monolithic, list(complex_input), 20)
         print(f"  Result: {''.join(monolithic_result)}")
     except Exception as e:
         print(f"  Failed: {str(e)}")
     
     # 3. Test simple parallel compositional enforcement (based on maximal substring)
     print("\n3. Simple Parallel Compositional Enforcement:")
-    parallel_result = parallel_compositional_enforcer(properties, list(complex_input), 10)
+    parallel_result = parallel_compositional_enforcer(properties, list(complex_input), 20)
     print(f"  Result: {parallel_result}")
     
     # 4. Analysis of results
@@ -511,18 +511,18 @@ def comparison_analysis(properties):
     
     # 1. Test each individual property
     for name, dfa in properties.items():
-        results[name] = ''.join(enforcer(dfa, list(comparison_input), 10))
+        results[name] = ''.join(enforcer(dfa, list(comparison_input), 20))
     
     # 2. Test monolithic enforcement
     all_props = list(properties.values())
     monolithic = monolithic_enforcer("Monolithic", *all_props)
     try:
-        results["monolithic"] = ''.join(enforcer(monolithic, list(comparison_input), 10))
+        results["monolithic"] = ''.join(enforcer(monolithic, list(comparison_input), 20))
     except Exception as e:
         results["monolithic"] = f"ERROR: {str(e)}"
     
     # 3. Test simple parallel compositional enforcement
-    results["parallel"] = parallel_compositional_enforcer(properties, list(comparison_input), 10)
+    results["parallel"] = parallel_compositional_enforcer(properties, list(comparison_input), 20)
     
     # Create a comparison table
     print("\nEvent-by-event enforcement comparison:")
