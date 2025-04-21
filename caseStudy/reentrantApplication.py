@@ -1,35 +1,10 @@
-#!/usr/bin/env python3
-"""
-reentrantApplication.py
-
-This file implements runtime enforcement for several reentrant application properties:
-
-1. No Reentrant Call in a Critical Section
-   Regular Expression: (o)*(e(o)*x(o)*)*
-   
-2. Eventual Completion of Interrupt Handling
-   Regular Expression: (o)*(i(o)*j(o)*)*
-   
-3. Bounded Depth of Reentrant Calls (Max Depth = 2)
-   Regular Expression: (o)*(c(o)*(c(o)*r(o)*)?r(o)*)*
-   
-4. No Premature Return
-   Regular Expression: (o)*(c(o)*r(o)*)*
-   
-5. Non-Reentrant Locking Protocol
-   Regular Expression: (o)*(l(o)*u(o)*)*
-
-Each property is represented as a DFA and tested with various input sequences,
-using both bounded runtime enforcement and compositional enforcement.
-"""
-
 import sys
 import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.enforcer import state, DFA, enforcer, monolithic_enforcer
+from src.enforcer import state, DFA, enforcer, monolithic_enforcer, longest_common_subsequence
 
 def build_and_test_property(name, alphabet, states, transition_map, start_state, accept_states, test_inputs, max_buffer=20):
     """Helper function to build a DFA and test it with various inputs using bounded enforcement"""
@@ -82,58 +57,96 @@ def build_and_test_property(name, alphabet, states, transition_map, start_state,
 def create_reentrant_properties():
     """Create and return all reentrant application property DFAs"""
     
-    # Common test inputs for all properties
-    test_inputs = {
-        "Valid Simple": "oooxo",
-        "Valid Complex": "ooooxoooxo",
-        "Invalid": "oooxooxoo"
-    }
-    
-    # 1. No Reentrant Call in a Critical Section
-    no_reentrant_call = build_and_test_property(
-        name="No Reentrant Call in a Critical Section",
-        alphabet=['e', 'x', 'o','l','u','c','r','i','j'],
-        states=['q0', 'q1', 'q2','T'],
+    # 1. No reentrant call before state update 
+    state_update = build_and_test_property(
+        name="No reentrant call before state update",
+        alphabet=['w','u','c','r'],
+        states=['q0', 'q1', 'q2','q3'],
         transition_map={
-            ('q0', 'o'): 'q0',
-            ('q0', 'l'): 'q0',
+            ('q0', 'w'): 'q1',
             ('q0', 'u'): 'q0',
-            ('q0', 'c'): 'q0',
             ('q0', 'r'): 'q0',
-            ('q0', 'i'): 'q0',
-            ('q0', 'j'): 'q0',
-            ('q0', 'e'): 'q1',
-            ('q0', 'x'): 'T',
-            ('q1', 'o'): 'q1',
-            ('q1', 'l'): 'q1',
-            ('q1', 'u'): 'q1',
-            ('q1', 'c'): 'q1',
+            ('q0', 'c'): 'q0',
+
+            ('q1', 'w'): 'q3',
+            ('q1', 'u'): 'q2',
             ('q1', 'r'): 'q1',
-            ('q1', 'i'): 'q1',
-            ('q1', 'j'): 'q1',
-            ('q1', 'x'): 'q2',
-            ('q1', 'e'): 'T',
-            ('q2', 'o'): 'q2',
-            ('q2', 'l'): 'q2',
+            ('q1', 'c'): 'q1',
+            
+            ('q2', 'w'): 'q2',
+            ('q2', 'u'): 'q2',
             ('q2', 'r'): 'q2',
             ('q2', 'c'): 'q2',
-            ('q2', 'u'): 'q2',
-            ('q2', 'i'): 'q2',
-            ('q2', 'j'): 'q2',
-            ('q2', 'x'): 'T',
-            ('q2', 'e'): 'q1',
-            ('T', 'o'): 'T',
-            ('T', 'l'): 'T',
-            ('T', 'u'): 'T',
-            ('T', 'c'): 'T',
-            ('T', 'r'): 'T',
-            ('T', 'i'): 'T',
-            ('T', 'j'): 'T',
-            ('T', 'x'): 'T',
-            ('T', 'e'): 'T'  # Violation - reentrant call
+
+            ('q3', 'w'): 'q3',
+            ('q3', 'u'): 'q3',
+            ('q3', 'r'): 'q3',
+            ('q3', 'c'): 'q3',
         },
         start_state='q0',
-        accept_states=['q0','q2'],
+        accept_states=['q2'],
+        test_inputs={
+            "Valid Sequence": "wcrwu",
+            "Violation (Reentrant Call)": "wcw",
+        }
+    )
+    
+    # 2. In one session, only one invocation of critical section 
+    cs_once = build_and_test_property(
+        name="In one session, only one invocation of critical section ",
+        alphabet=['w','u','c','r'],
+        states=['q0', 'q1', 'q2'],
+        transition_map={
+            ('q0', 'w'): 'q0',
+            ('q0', 'u'): 'q0',
+            ('q0', 'r'): 'q0',
+            ('q0', 'c'): 'q1',
+
+            ('q1', 'w'): 'q1',
+            ('q1', 'u'): 'q1',
+            ('q1', 'r'): 'q1',
+            ('q1', 'c'): 'q2',
+            
+            ('q2', 'w'): 'q2',
+            ('q2', 'u'): 'q2',
+            ('q2', 'r'): 'q2',
+            ('q2', 'c'): 'q2',
+        },
+        start_state='q0',
+        accept_states=['q0','q1'],
+        test_inputs={
+            "Valid Sequence": "ooeoxoeoxo",
+            "Violation (Reentrant Call)": "ooeeoexo",
+            "Empty Critical Section": "oexoexo"
+        }
+    )
+    # 3. No Reentrant Call in a Critical Section
+    no_reentrant_call = build_and_test_property(
+        name="No Reentrant Call in a Critical Section",
+        alphabet=['w','u','c','r'],
+        states=['q0', 'q1', 'q2','q3'],
+        transition_map={
+            ('q0', 'w'): 'q0',
+            ('q0', 'u'): 'q0',
+            ('q0', 'r'): 'q0',
+            ('q0', 'c'): 'q1',
+            ('q1', 'w'): 'q3',
+            ('q1', 'u'): 'q2',
+            ('q1', 'r'): 'q1',
+            ('q1', 'c'): 'q1',
+            
+            ('q2', 'w'): 'q2',
+            ('q2', 'u'): 'q2',
+            ('q2', 'r'): 'q2',
+            ('q2', 'c'): 'q2',
+
+            ('q3', 'w'): 'q3',
+            ('q3', 'u'): 'q3',
+            ('q3', 'r'): 'q3',
+            ('q3', 'c'): 'q3',
+        },
+        start_state='q0',
+        accept_states=['q2'],
         test_inputs={
             "Valid Sequence": "ooeoxoeoxo",
             "Violation (Reentrant Call)": "ooeeoexo",
@@ -141,239 +154,88 @@ def create_reentrant_properties():
         }
     )
     
-    # 2. Eventual Completion of Interrupt Handling
-    interrupt_handling = build_and_test_property(
-        name="Eventual Completion of Interrupt Handling",
-        alphabet=['e', 'x', 'o','l','u','c','r','i','j'],
-        states=['q0', 'q1', 'q2', 'T'],
+    
+    # 4. In one session, maximum reentrant calls allowed=3
+    max_reentrant_calls = build_and_test_property(
+        name="In one session, maximum reentrant calls allowed=3",
+        alphabet=['w','u','c','r'],
+        states=['q0', 'q1', 'q2','q3','q4'],
         transition_map={
-            ('q0', 'o'): 'q0',
-            ('q0', 'l'): 'q0',
+            ('q0', 'w'): 'q1',
             ('q0', 'u'): 'q0',
-            ('q0', 'c'): 'q0',
             ('q0', 'r'): 'q0',
-            ('q0', 'e'): 'q0',
-            ('q0', 'x'): 'q0',
-            ('q0', 'i'): 'q1',
-            ('q0', 'j'): 'T',
-            ('q1', 'o'): 'q1',
-            ('q1', 'l'): 'q1',
+            ('q0', 'c'): 'q0',
+
+            ('q1', 'w'): 'q2',
             ('q1', 'u'): 'q1',
-            ('q1', 'c'): 'q1',
             ('q1', 'r'): 'q1',
-            ('q1', 'e'): 'q1',
-            ('q1', 'x'): 'q1',
-            ('q1', 'j'): 'q2',
-            ('q1', 'i'): 'T',
-            ('q2', 'o'): 'q2',
-            ('q2', 'l'): 'q2',
+            ('q1', 'c'): 'q1',
+            
+            ('q2', 'w'): 'q3',
             ('q2', 'u'): 'q2',
-            ('q2', 'c'): 'q2',
             ('q2', 'r'): 'q2',
-            ('q2', 'e'): 'q2',
-            ('q2', 'x'): 'q2',
-            ('q2', 'j'): 'T',
-            ('q2', 'i'): 'q1',
-            ('T', 'o'): 'T',
-            ('T', 'l'): 'T',
-            ('T', 'u'): 'T',
-            ('T', 'c'): 'T',
-            ('T', 'r'): 'T',
-            ('T', 'e'): 'T',
-            ('T', 'x'): 'T',
-            ('T', 'j'): 'T',
-            ('T', 'i'): 'T'
-        },
-        start_state='q0',
-        accept_states=['q0','q2'],
-        test_inputs={
-            "Valid Sequence": "ooiojioojo",
-            "Violation (Missing End)": "ooioio",
-            "Violation (Nested Interrupt)": "oiiojo"
-        }
-    )
-    
-    # 3. Bounded Depth of Reentrant Calls (Max Depth = 2)
-    bounded_reentrant_calls = build_and_test_property(
-        name="Bounded Depth of Reentrant Calls (Max Depth = 2)",
-        alphabet=['e', 'x', 'o','l','u','c','r','i','j'],
-        states=['q0', 'q1', 'q2', 'q3','q4','T'],
-        transition_map={
-            ('q0', 'o'): 'q0',
-            ('q0', 'l'): 'q0',
-            ('q0', 'u'): 'q0',
-            ('q0', 'i'): 'q0',
-            ('q0', 'j'): 'q0',
-            ('q0', 'e'): 'q0',
-            ('q0', 'x'): 'q0',
-            ('q0', 'c'): 'q1',
-            ('q0', 'r'): 'T',  
-            ('q1', 'o'): 'q1',
-            ('q1', 'l'): 'q1',
-            ('q1', 'u'): 'q1',
-            ('q1', 'i'): 'q1',
-            ('q1', 'j'): 'q1',
-            ('q1', 'e'): 'q1',
-            ('q1', 'x'): 'q1',
-            ('q1', 'c'): 'q2',
-            ('q1', 'r'): 'q4',
-            ('q2', 'o'): 'q2',
-            ('q2', 'l'): 'q2',
-            ('q2', 'u'): 'q2',
-            ('q2', 'i'): 'q2',
-            ('q2', 'j'): 'q2',
-            ('q2', 'e'): 'q2',
-            ('q2', 'x'): 'q2',
-            ('q2', 'c'): 'T',  
-            ('q2', 'r'): 'q3',
-            ('q3', 'o'): 'q3',
-            ('q3', 'l'): 'q3',
+            ('q2', 'c'): 'q2',
+
+            ('q3', 'w'): 'q4',
             ('q3', 'u'): 'q3',
-            ('q3', 'i'): 'q3',
-            ('q3', 'j'): 'q3',
-            ('q3', 'e'): 'q3',
-            ('q3', 'x'): 'q3',
-            ('q3', 'c'): 'T',  
-            ('q3', 'r'): 'q4',
-            ('q4', 'o'): 'q4',
-            ('q4', 'l'): 'q4',
+            ('q3', 'r'): 'q3',
+            ('q3', 'c'): 'q3',
+
+            ('q4', 'w'): 'q4',
             ('q4', 'u'): 'q4',
-            ('q4', 'i'): 'q4',
-            ('q4', 'j'): 'q4',
-            ('q4', 'e'): 'q4',
-            ('q4', 'x'): 'q4',
-            ('q4', 'c'): 'q1',  
-            ('q4', 'r'): 'T',
-            ('T', 'o'): 'T',
-            ('T', 'i'): 'T',
-            ('T', 'j'): 'T',
-            ('T', 'l'): 'T',
-            ('T', 'u'): 'T',
-            ('T', 'e'): 'T',
-            ('T', 'x'): 'T',
-            ('T', 'c'): 'T',
-            ('T', 'r'): 'T'
+            ('q4', 'r'): 'q4',
+            ('q4', 'c'): 'q4',
         },
         start_state='q0',
-        accept_states=['q0','q4'],
+        accept_states=['q0','q1','q2','q3'],
         test_inputs={
-            "Valid Sequence (Depth 1)": "ocoro",
-            "Valid Sequence (Depth 2)": "occoror",
-            "Violation (Depth 3)": "occocorro",
-            "Mixed Valid Sequence": "ocoroccororo"
+            "Valid Sequence": "ooeoxoeoxo",
+            "Violation (Reentrant Call)": "ooeeoexo",
+            "Empty Critical Section": "oexoexo"
         }
     )
     
-    # 4. No Premature Return
-    no_premature_return = build_and_test_property(
-        name="No Premature Return",
-        alphabet=['e', 'x', 'o','l','u','c','r','i','j'],
-        states=['q0', 'q1','q2','T'],
+    # 5. After release, resource should not be acquired again in critical section
+    release_acquire = build_and_test_property(
+        name="After release, resource should not be acquired again in critical section",
+        alphabet=['w','u','c','r'],
+        states=['q0', 'q1', 'q2','q3'],
         transition_map={
-            ('q0', 'o'): 'q0',
-            ('q0', 'l'): 'q0',
+            ('q0', 'w'): 'q0',
             ('q0', 'u'): 'q0',
-            ('q0', 'i'): 'q0',
-            ('q0', 'j'): 'q0',
-            ('q0', 'e'): 'q0',
-            ('q0', 'x'): 'q0',
-            ('q0', 'c'): 'q1',
-            ('q0', 'r'): 'T',
-            ('q1', 'o'): 'q1',
-            ('q1', 'l'): 'q1',
-            ('q1', 'u'): 'q1',
-            ('q1', 'i'): 'q1',
-            ('q1', 'j'): 'q1',
-            ('q1', 'e'): 'q1',
-            ('q1', 'x'): 'q1',
+            ('q0', 'r'): 'q1',
+            ('q0', 'c'): 'q0',
+
+            ('q1', 'w'): 'q2',
+            ('q1', 'u'): 'q3',
             ('q1', 'r'): 'q2',
-            ('q1', 'c'): 'T',
-             ('q2', 'o'): 'q2',
-            ('q2', 'l'): 'q2',
+            ('q1', 'c'): 'q3',
+            
+            ('q2', 'w'): 'q2',
             ('q2', 'u'): 'q2',
-            ('q2', 'i'): 'q2',
-            ('q2', 'j'): 'q2',
-            ('q2', 'e'): 'q2',
-            ('q2', 'x'): 'q2',
-            ('q2', 'r'): 'T',
-            ('q2', 'c'): 'q1',
-            ('T', 'o'): 'T',
-            ('T', 'i'): 'T',
-            ('T', 'j'): 'T',
-            ('T', 'l'): 'T',
-            ('T', 'u'): 'T',
-            ('T', 'e'): 'T',
-            ('T', 'x'): 'T',
-            ('T', 'r'): 'T',
-            ('T', 'c'): 'T' 
+            ('q2', 'r'): 'q2',
+            ('q2', 'c'): 'q2',
+
+            ('q3', 'w'): 'q3',
+            ('q3', 'u'): 'q3',
+            ('q3', 'r'): 'q3',
+            ('q3', 'c'): 'q3',
         },
         start_state='q0',
-        accept_states=['q0','q2'],
+        accept_states=['q0','q1','q2'],
         test_inputs={
-            "Valid Sequence": "oocorcooro",
-            "Violation (Premature Return)": "oorcocor",
-            "Balanced Calls": "ocrcocro"
-        }
-    )
-    
-    # 5. Non-Reentrant Locking Protocol
-    non_reentrant_locking = build_and_test_property(
-        name="Non-Reentrant Locking Protocol",
-        alphabet=['e', 'x', 'o','l','u','c','r','i','j'],
-        states=['q0', 'q1','q2','T'],
-        transition_map={
-           ('q0', 'o'): 'q0',
-           ('q0', 'i'): 'q0',
-           ('q0', 'j'): 'q0',
-           ('q0', 'c'): 'q0',
-           ('q0', 'r'): 'q0',
-           ('q0', 'e'): 'q0',
-           ('q0', 'x'): 'q0',
-            ('q0', 'l'): 'q1',
-            ('q0', 'u'): 'T',
-            ('q1', 'o'): 'q1',
-           ('q1', 'i'): 'q1',
-           ('q1', 'j'): 'q1',
-           ('q1', 'c'): 'q1',
-           ('q1', 'r'): 'q1',
-           ('q1', 'e'): 'q1',
-           ('q1', 'x'): 'q1',
-            ('q1', 'u'): 'q2',
-            ('q1', 'l'): 'T',
-            ('q2', 'o'): 'q2',
-           ('q2', 'i'): 'q2',
-           ('q2', 'j'): 'q2',
-           ('q2', 'c'): 'q2',
-           ('q2', 'r'): 'q2',
-           ('q2', 'e'): 'q2',
-           ('q2', 'x'): 'q2',
-            ('q2', 'u'): 'T',
-            ('q2', 'l'): 'q1',
-            ('T', 'o'): 'T',
-            ('T', 'i'): 'T',
-            ('T', 'j'): 'T',
-            ('T', 'l'): 'T',
-            ('T', 'u'): 'T',
-            ('T', 'e'): 'T',
-            ('T', 'x'): 'T',
-            ('T', 'r'): 'T',
-            ('T', 'c'): 'T'  
-        },
-        start_state='q0',
-        accept_states=['q0','q2'],
-        test_inputs={
-            "Valid Sequence": "ooloulou",
-            "Violation (Nested Lock)": "ollouo",
-            "Empty Critical Section": "oluo"
+            "Valid Sequence": "ooeoxoeoxo",
+            "Violation (Reentrant Call)": "ooeeoexo",
+            "Empty Critical Section": "oexoexo"
         }
     )
     
     return {
+        "state_update": state_update,
+        "cs_once": cs_once,
         "no_reentrant_call": no_reentrant_call,
-        "interrupt_handling": interrupt_handling,
-        "bounded_reentrant_calls": bounded_reentrant_calls,
-        "no_premature_return": no_premature_return,
-        "non_reentrant_locking": non_reentrant_locking
+        "max_reentrant_calls": max_reentrant_calls,
+        "release_acquire": release_acquire
     }
 
 
@@ -390,11 +252,11 @@ def test_monolithic_intersection_enforcement(properties):
     monolithic = monolithic_enforcer("All_Properties", *all_properties)
     
     # Create a complex test input with all alphabet symbols
-    complex_input = "ooeoxocrijocroluoeoexoccroijolucrocr"
+    complex_input = "wcrcrcrcrcrcrcwcrwcrwcrwcrwcrwcrwcrwcruuuu"
     print(f"Input: {complex_input}")
     
     # Test with different buffer sizes
-    for buffer_size in [20]:
+    for buffer_size in [5]:
         # Use the enforcer function from enforcer.py
         enforced = enforcer(monolithic, list(complex_input), buffer_size)
         print(f"Buffer size {buffer_size}: {''.join(enforced)}")
@@ -413,7 +275,6 @@ def parallel_compositional_enforcer(properties, input_events, max_buffer=20):
     Returns:
         String representing the enforced output sequence after taking maximal substring
     """
-    from src.enforcer import longest_common_subsequence
     
     print("\nSimple Parallel Compositional Enforcement:")
     print("-" * 80)
@@ -451,7 +312,7 @@ def test_individual_vs_combined_enforcement(properties):
     print("=" * 80)
     
     # Create a complex test input with all alphabet symbols
-    complex_input = "ooeoxocrijocroluoeoexoccroijolucrocr"
+    complex_input = "wcrwcrwcrwcrwcrwcrwcrwcruuuuuu"
     print(f"Input: {complex_input}")
     
     # 1. Test individual property enforcement

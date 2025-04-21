@@ -131,6 +131,65 @@ def CS4(Type="DFA"):
     return DFA('CS4', alphabet, [S0, S1, S2, S3, S4, T], S0, F, d, [S4])
 
 #############################
+# Automaton for CS4 property
+#############################
+def CS4(Type="DFA"):
+    # States:
+    # S0: initial.
+    # S1: after receiving 'a'.
+    # S2: after receiving second action (any letter from alphabet).
+    # S3: after receiving 'b'.
+    # S4: after receiving 'c' -> accepting.
+    # T: trap state.
+    S0 = state('S0')
+    S1 = state('S1')
+    S2 = state('S2')
+    S3 = state('S3')
+    S4 = state('S4')  # accepting state
+    T  = state('T')   # trap state
+
+    # From S0: only 'a' is allowed.
+    for a in alphabet:
+        if a == 'a':
+            S0.transit[a] = S1
+        else:
+            S0.transit[a] = T
+
+    # From S1: any letter in {a, b, c} goes to S2.
+    for a in alphabet:
+        S1.transit[a] = S2
+
+    # From S2: only 'b' is allowed.
+    for a in alphabet:
+        if a == 'b':
+            S2.transit[a] = S3
+        else:
+            S2.transit[a] = T
+
+    # From S3: only 'c' is allowed.
+    for a in alphabet:
+        if a == 'c':
+            S3.transit[a] = S4
+        else:
+            S3.transit[a] = T
+
+    # S4 is accepting; once reached, any input loops in S4.
+    for a in alphabet:
+        S4.transit[a] = S4
+
+    # Trap state T loops to itself.
+    for a in alphabet:
+        T.transit[a] = T
+
+    # Transition and acceptance functions
+    d = lambda state, a: state.transit[a]
+    F = lambda state: state in [S4]
+    
+    return DFA('CS4', alphabet, [S0, S1, S2, S3, S4, T], S0, F, d, [S4])
+
+
+
+#############################
 # Main: Testing the Automata
 #############################
 if __name__ == '__main__':

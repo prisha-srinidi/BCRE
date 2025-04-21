@@ -15,7 +15,7 @@ class DFA:
         self.q = q0
         self.F = F
         self.d = d
-        self.e = e # empty word
+        self.e = e # empty string
 
         self.reset()
         
