@@ -405,7 +405,7 @@ def main():
         enforcer_perf = measure_enforcer_performance(dfa4, input_string, buffer_size=buffer_size)
         enforcer_perf = measure_enforcer_performance(dfa5, input_string, buffer_size=buffer_size)
         monolithic_perf = measure_monolithic_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, buffer_size=buffer_size)
-        parallel_perf = measure_parallel_lcs_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, buffer_size=buffer_size)
+        # parallel_perf = measure_parallel_lcs_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, buffer_size=buffer_size)
         serial_perf = measure_serial_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, buffer_size=buffer_size)
         
         result_row = {
@@ -414,10 +414,10 @@ def main():
             'single_enforcer_output_length': enforcer_perf['output_length'],
             'monolithic_mean_time': monolithic_perf['mean'],
             'monolithic_output_length': monolithic_perf['output_length'],
-            'parallel_lcs_mean_time': parallel_perf['mean'],
-            'parallel_enforcement_time': parallel_perf['mean_enforcement'],
-            'parallel_lcs_calc_time': parallel_perf['mean_lcs'],
-            'parallel_lcs_output_length': parallel_perf['output_length'],
+            # 'parallel_lcs_mean_time': parallel_perf['mean'],
+            # 'parallel_enforcement_time': parallel_perf['mean_enforcement'],
+            # 'parallel_lcs_calc_time': parallel_perf['mean_lcs'],
+            # 'parallel_lcs_output_length': parallel_perf['output_length'],
             'serial_mean_time': serial_perf['mean'],
             'serial_output_length': serial_perf['output_length']
         }
@@ -426,9 +426,9 @@ def main():
         
         print(f"Single Enforcer: {enforcer_perf['mean']:.6f} seconds")
         print(f"Monolithic: {monolithic_perf['mean']:.6f} seconds")
-        print(f"Parallel LCS: {parallel_perf['mean']:.6f} seconds")
+        # print(f"Parallel LCS: {parallel_perf['mean']:.6f} seconds")
         print(f"Serial: {serial_perf['mean']:.6f} seconds")
-        print(f"Output lengths: {enforcer_perf['output_length']}, {monolithic_perf['output_length']}, {parallel_perf['output_length']}, {serial_perf['output_length']}")
+        # print(f"Output lengths: {enforcer_perf['output_length']}, {monolithic_perf['output_length']}, {parallel_perf['output_length']}, {serial_perf['output_length']}")
         print("-" * 50)
     
     results.to_csv('enforcer_performance_comparison.csv', index=False)
@@ -438,13 +438,13 @@ def main():
     print(results)
     
     results['mono_to_single_ratio'] = results['monolithic_mean_time'] / results['single_enforcer_mean_time']
-    results['parallel_to_mono_ratio'] = results['parallel_lcs_mean_time'] / results['monolithic_mean_time']
+    # results['parallel_to_mono_ratio'] = results['parallel_lcs_mean_time'] / results['monolithic_mean_time']
     results['serial_to_mono_ratio'] = results['serial_mean_time'] / results['monolithic_mean_time']
     
     print("\nPerformance Ratios:")
     print("=" * 50)
     print(f"Monolithic/Single: {results['mono_to_single_ratio'].mean():.2f}x")
-    print(f"Parallel/Monolithic: {results['parallel_to_mono_ratio'].mean():.2f}x")
+    # print(f"Parallel/Monolithic: {results['parallel_to_mono_ratio'].mean():.2f}x")
     print(f"Serial/Monolithic: {results['serial_to_mono_ratio'].mean():.2f}x")
 
 if __name__ == "__main__":
