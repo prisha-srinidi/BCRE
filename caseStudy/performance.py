@@ -11,9 +11,12 @@ if project_root not in sys.path:
 
 from src.enforcer import state, DFA, enforcer, monolithic_enforcer, longest_common_subsequence, serial_enforcer
 
-def create_sample_dfa(alphabet):
+
+
+#The properties'automata are as follows".....................................................................................
+def no_reentrant_call_before_update(alphabet):
     """
-    Creates a DFA for "No reentrant call before state update" property
+    Creates a DFA for "P1: No reentrant call before state update" property
     
     States:
     - q0: Initial state
@@ -50,9 +53,9 @@ def create_sample_dfa(alphabet):
     return DFA('no_reentrant_call_before_update', alphabet, 
                [q0, q1, q2, trap], q0, F, d, [q2])
 
-def create_single_cs_invocation(alphabet):
+def in_one_section_only_one_invocation_of_critical_section(alphabet):
     """
-    Creates a DFA for "Single Action Invocation (Mutex Enforcement): In 1 section, only 1 invocation of critical section is allowed" property
+    Creates a DFA for "P2: Single Invocation (Mutex Enforcement): In 1 section, only 1 invocation of critical section is allowed" property
     
     States:
     - q0: Initial state (outside critical section)
@@ -95,9 +98,9 @@ def create_single_cs_invocation(alphabet):
     return DFA('in_one_section_only_one_invocation_of_critical_section', alphabet, 
                [q0, q1, trap], q0, F, d, [q0, q1])
 
-def create_reentrant_dfa(alphabet):
+def no_reentrant_call_in_critical_section(alphabet):
     """
-    Creates a DFA for "No Reentrant Call in a Critical Section" property
+    Creates a DFA for "P3: No Reentrant Call in a Critical Section" property
     
     States:
     - q0: Initial state (outside critical section)
@@ -142,9 +145,9 @@ def create_reentrant_dfa(alphabet):
     return DFA('no_reentrant_call_in_critical_section', alphabet, 
                [q0, q1, q2, trap], q0, F, d, [q2])
 
-def limit_reentrant_calls(alphabet):
+def limit_state_update_to_three_in_one_session(alphabet):
     """
-    Creates a DFA for "Single Action Invocation (Mutex Enforcement): In 1 section, only 1 invocation of critical section is allowed" property
+    Creates a DFA for "P4: Limiting the number of state updates: In 1 session, the maximum number of state updates allowed is 3." property
     
     States:
     - q0: Initial state (outside critical section)
@@ -161,34 +164,34 @@ def limit_reentrant_calls(alphabet):
     
     
     for a in alphabet:
-        if a == 'w':
+        if a == 'u':
             q0.transit[a] = q1    
-        elif a == 'u':
+        elif a == 'w':
             q0.transit[a] = q0   
         elif a == 'r':
             q0.transit[a] = q0   
         elif a == 'c':
             q0.transit[a] = q0   
     
-        if a == 'w':
+        if a == 'u':
             q1.transit[a] = q2    
-        elif a == 'u':
+        elif a == 'w':
             q1.transit[a] = q1    
         elif a == 'r':
             q1.transit[a] = q1    
         elif a == 'c':
             q1.transit[a] = q1    
-        if a == 'w':
+        if a == 'u':
             q2.transit[a] = q3   
-        elif a == 'u':
+        elif a == 'w':
             q2.transit[a] = q2    
         elif a == 'r':
             q2.transit[a] = q2    
         elif a == 'c':
             q2.transit[a] = q2    
-        if a == 'w':
+        if a == 'u':
             q3.transit[a] = trap    
-        elif a == 'u':
+        elif a == 'w':
             q3.transit[a] = q3    
         elif a == 'r':
             q3.transit[a] = q3    
@@ -200,12 +203,12 @@ def limit_reentrant_calls(alphabet):
     d = lambda state, a: state.transit[a]
     F = lambda state: state.name in ['q0','q1','q2','q3'] 
     
-    return DFA('limit_reentrant_calls_to_three_in_one_session', alphabet, 
+    return DFA('limit_state_update_to_three_in_one_session', alphabet, 
                [q0, q1, q2, q3, trap], q0, F, d, [q0, q1,q2,q3])
 
 def no_access_after_release(alphabet):
     """
-    Creates a DFA for "Single Action Invocation (Mutex Enforcement): In 1 section, only 1 invocation of critical section is allowed" property
+    Creates a DFA for "P5: No Access After Release: After being released, resources cannot be accessed in the critical section.
     
     States:
     - q0: Initial state (outside critical section)
@@ -247,8 +250,14 @@ def no_access_after_release(alphabet):
     d = lambda state, a: state.transit[a]
     F = lambda state: state.name in ['q0','q1','q2'] 
     
-    return DFA('no_reentrant_call_in_critical_section', alphabet, 
+    return DFA('no_access_after_release', alphabet, 
                [q0, q1, q2, trap], q0, F, d, [q0, q1, q2])
+
+#The properties'automata modelling is done.....................................................................................
+
+
+
+
 
 def measure_enforcer_performance(dfa, input_string, buffer_size=10, iterations=1):
     """Measure the performance of the enforcer function"""
@@ -296,9 +305,10 @@ def measure_monolithic_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, b
         'output_length': len(''.join(enforced_output)),
         'input_length': len(input_string)
     }
-
+    
+"""
 def measure_parallel_lcs_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string, buffer_size=10, iterations=1):
-    """Measure the performance of parallel LCS enforcement with separate timing for enforcement and LCS"""
+    #Measure the performance of parallel LCS enforcement with separate timing for enforcement and LCS
     enforcement_times = []
     lcs_times = []
     print("parallel")
@@ -337,6 +347,7 @@ def measure_parallel_lcs_performance(dfa1, dfa2, dfa3, dfa4, dfa5, input_string,
         'output_length': len(lcs_output),
         'input_length': len(input_string)
     }
+"""
 
 def measure_serial_performance(dfa1, dfa2,dfa3,dfa4,dfa5, input_string, buffer_size=10, iterations=1):
     """Measure the performance of serial enforcement"""
@@ -380,10 +391,10 @@ def generate_random_string(alphabet, length):
 def main():
     shared_alphabet = ['w','c','r','u']
     
-    dfa1 = create_sample_dfa(shared_alphabet)
-    dfa2= create_single_cs_invocation(shared_alphabet)
-    dfa3 = create_reentrant_dfa(shared_alphabet)
-    dfa4 = limit_reentrant_calls(shared_alphabet)
+    dfa1 = no_reentrant_call_before_update(shared_alphabet)
+    dfa2= in_one_section_only_one_invocation_of_critical_section(shared_alphabet)
+    dfa3 = no_reentrant_call_in_critical_section(shared_alphabet)
+    dfa4 = limit_state_update_to_three_in_one_session(shared_alphabet)
     dfa5 = no_access_after_release(shared_alphabet)
 
     
