@@ -246,19 +246,9 @@ class DFA(BaseDFA):
     def __flushBuffer(self):
         """Clears the internal buffer."""
         self.buffer = []
-
+"""
 def longest_common_subsequence(s1, s2):
-    """
-    Computes the longest common subsequence between two strings.
-    Used for parallel compositional enforcement.
-    
-    Args:
-        s1: First string
-        s2: Second string
-        
-    Returns:
-        String representing the longest common subsequence
-    """
+    #Computes the longest common subsequence between two strings. Used for parallel compositional enforcement. Args: (s1: First string,s2: Second string). Returns: String representing the longest common subsequence
     m, n = len(s1), len(s2)
     dp = [[0]*(n+1) for _ in range(m+1)]
     for i in range(m):
@@ -279,6 +269,7 @@ def longest_common_subsequence(s1, s2):
         else:
             j -= 1
     return ''.join(reversed(lcs_chars))
+"""
 
 def product(A, B, p_name):
     """
